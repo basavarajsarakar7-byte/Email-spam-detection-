@@ -1,0 +1,255 @@
+import streamlit as st
+import pandas as pd
+
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+
+# =====================================================
+# PAGE CONFIGURATION
+# =====================================================
+
+st.set_page_config(
+    page_title="Email Spam Detection",
+    page_icon="📧",
+    layout="centered"
+)
+
+st.title("📧 Email Spam Detection")
+st.write("Machine Learning based Email Spam Detection")
+
+
+# =====================================================
+# STEP 1: CREATE DATASET
+# =====================================================
+
+data = {
+    "Category": [
+        "spam", "spam", "spam", "spam", "spam",
+        "spam", "spam", "spam", "spam", "spam",
+        "spam", "spam", "spam", "spam", "spam",
+
+        "ham", "ham", "ham", "ham", "ham",
+        "ham", "ham", "ham", "ham", "ham",
+        "ham", "ham", "ham", "ham", "ham"
+    ],
+
+    "Message": [
+        "Congratulations you won 10000 rupees",
+        "You won a lottery claim your prize now",
+        "Free cash reward click here now",
+        "Win a free gift today",
+        "Urgent claim your cash prize",
+        "Congratulations you are a lucky winner",
+        "You won money click here",
+        "Claim your free reward now",
+        "Free prize waiting for you",
+        "Win cash instantly now",
+        "You have won 5000 rupees",
+        "Claim your lottery reward immediately",
+        "Free mobile recharge available now",
+        "You are selected to win a cash prize",
+        "Limited offer claim your free gift now",
+
+        "Hi how are you",
+        "Are you coming to college today",
+        "Please send me the notes",
+        "Lets meet tomorrow",
+        "What time is the class",
+        "I will call you later",
+        "Please bring the project file",
+        "Good morning have a nice day",
+        "Where are you now",
+        "Can we meet after college",
+        "I am going to college today",
+        "Please complete the assignment",
+        "The meeting is at ten o clock",
+        "Thank you for your help",
+        "See you tomorrow"
+    ]
+}
+
+
+df = pd.DataFrame(data)
+
+
+# =====================================================
+# STEP 2: CONVERT CATEGORY INTO NUMBERS
+# =====================================================
+
+df["Category"] = df["Category"].map({
+    "ham": 0,
+    "spam": 1
+})
+
+
+# =====================================================
+# STEP 3: INPUT AND OUTPUT
+# =====================================================
+
+X = df["Message"]
+y = df["Category"]
+
+
+# =====================================================
+# STEP 4: TRAIN TEST SPLIT
+# =====================================================
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42,
+    stratify=y
+)
+
+
+# =====================================================
+# STEP 5: TF-IDF
+# =====================================================
+
+vectorizer = TfidfVectorizer(
+    lowercase=True,
+    stop_words="english"
+)
+
+X_train_vector = vectorizer.fit_transform(X_train)
+X_test_vector = vectorizer.transform(X_test)
+
+
+# =====================================================
+# STEP 6: CREATE MODEL
+# =====================================================
+
+model = MultinomialNB()
+
+
+# =====================================================
+# STEP 7: TRAIN MODEL
+# =====================================================
+
+model.fit(X_train_vector, y_train)
+
+
+# =====================================================
+# STEP 8: PREDICTION
+# =====================================================
+
+y_pred = model.predict(X_test_vector)
+
+
+# =====================================================
+# STEP 9: ACCURACY
+# =====================================================
+
+accuracy = accuracy_score(y_test, y_pred)
+
+
+# =====================================================
+# DISPLAY ACCURACY
+# =====================================================
+
+st.subheader("📊 Model Accuracy")
+
+st.metric(
+    "Accuracy",
+    f"{accuracy * 100:.2f}%"
+)
+
+
+# =====================================================
+# MANUAL MESSAGE TESTING
+# =====================================================
+
+st.subheader("🔍 Test Your Email / Message")
+
+message = st.text_area(
+    "Enter your email or message here:"
+)
+
+
+if st.button("Check Message"):
+
+    if message.strip() == "":
+        st.warning("Please enter a message.")
+
+    else:
+
+        # Convert message into numerical vector
+        message_vector = vectorizer.transform([message])
+
+        # Predict
+        prediction = model.predict(message_vector)
+
+        # Probability
+        probability = model.predict_proba(message_vector)
+
+        ham_probability = probability[0][0] * 100
+        spam_probability = probability[0][1] * 100
+
+
+        # Display result
+        if prediction[0] == 1:
+
+            st.error("🚨 RESULT: SPAM")
+
+        else:
+
+            st.success("✅ RESULT: HAM (NOT SPAM)")
+
+
+        # Display probabilities
+        st.write(
+            f"**Spam Probability:** {spam_probability:.2f}%"
+        )
+
+        st.write(
+            f"**Ham Probability:** {ham_probability:.2f}%"
+        )
+
+
+# =====================================================
+# CONFUSION MATRIX
+# =====================================================
+
+st.subheader("📈 Confusion Matrix")
+
+cm = confusion_matrix(y_test, y_pred)
+
+cm_df = pd.DataFrame(
+    cm,
+    index=["Actual Ham", "Actual Spam"],
+    columns=["Predicted Ham", "Predicted Spam"]
+)
+
+st.dataframe(cm_df)
+
+
+# =====================================================
+# CLASSIFICATION REPORT
+# =====================================================
+
+st.subheader("📋 Classification Report")
+
+report = classification_report(
+    y_test,
+    y_pred,
+    target_names=["Ham", "Spam"],
+    zero_division=0,
+    output_dict=True
+)
+
+report_df = pd.DataFrame(report).transpose()
+
+st.dataframe(report_df)
+
+
+# =====================================================
+# DATASET
+# =====================================================
+
+st.subheader("📚 Dataset")
+
+st.dataframe(df)
